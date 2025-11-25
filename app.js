@@ -503,53 +503,101 @@ const scanBtn = document.getElementById("scanBtn");
 const scannerModal = document.getElementById("scannerModal");
 const closeScanner = document.querySelector(".close-scanner");
 const videoElement = document.getElementById("cameraPreview");
-
 let codeReader = null;
+let currentStream = null;
+let videoDevices = [];
+let selectedDeviceId = null;
 
+// Open Scanner
 scanBtn.addEventListener("click", async () => {
     scannerModal.style.display = "block";
 
     codeReader = new ZXing.BrowserMultiFormatReader();
 
     try {
-        // Use facingMode: 'environment' for back camera, 'user' for front
-        const constraints = { video: { facingMode: { ideal: "environment" } } };
+        // List video input devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        videoDevices = devices.filter(d => d.kind === 'videoinput');
 
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        videoElement.srcObject = stream;
-        videoElement.play();
+        if (videoDevices.length === 0) {
+            alert("No camera found!");
+            return;
+        }
 
-        codeReader.decodeFromVideoElement(videoElement, (result, err) => {
-            if (result) {
-                document.getElementById("barcodeInput").value = result.text;
-                closeScannerModal();
-            }
-            if (err && !(err instanceof ZXing.NotFoundException)) {
-                console.error(err);
-            }
-        });
+        // Pick the rear camera if available
+        const rearCamera = videoDevices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'));
+        selectedDeviceId = rearCamera ? rearCamera.deviceId : videoDevices[0].deviceId;
+
+        startCamera(selectedDeviceId);
+
+        // Optional: Add a toggle button for front/back
+        addCameraToggle();
     } catch (error) {
         console.error("Camera error:", error);
-        alert("Cannot access back camera. Error: " + error.message);
+        alert("Cannot access camera. Error: " + error.message);
     }
 });
 
+// Start camera with deviceId
+async function startCamera(deviceId) {
+    if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+    }
+
+    const constraints = { video: { deviceId: { exact: deviceId } } };
+    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+    videoElement.srcObject = currentStream;
+    videoElement.play();
+
+    codeReader.decodeFromVideoElement(videoElement, (result, err) => {
+        if (result) {
+            document.getElementById("barcodeInput").value = result.text;
+            closeScannerModal();
+        }
+        if (err && !(err instanceof ZXing.NotFoundException)) {
+            console.error(err);
+        }
+    });
+}
+
+// Close Scanner
 function closeScannerModal() {
     scannerModal.style.display = "none";
     if (codeReader) {
         codeReader.reset();
         codeReader = null;
     }
-    if (videoElement.srcObject) {
-        videoElement.srcObject.getTracks().forEach(track => track.stop());
-        videoElement.srcObject = null;
+    if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
     }
 }
 
+// Close events
 closeScanner.addEventListener("click", closeScannerModal);
 window.addEventListener("click", (e) => {
     if (e.target === scannerModal) closeScannerModal();
 });
+
+// Optional: Toggle camera
+function addCameraToggle() {
+    let toggleBtn = document.getElementById("cameraToggleBtn");
+    if (!toggleBtn) {
+        toggleBtn = document.createElement("button");
+        toggleBtn.id = "cameraToggleBtn";
+        toggleBtn.textContent = "Switch Camera";
+        toggleBtn.className = "btn-secondary";
+        scannerModal.querySelector(".modal-body").prepend(toggleBtn);
+
+        toggleBtn.addEventListener("click", () => {
+            if (videoDevices.length < 2) return; // Only 1 camera
+            const currentIndex = videoDevices.findIndex(d => d.deviceId === selectedDeviceId);
+            const nextIndex = (currentIndex + 1) % videoDevices.length;
+            selectedDeviceId = videoDevices[nextIndex].deviceId;
+            startCamera(selectedDeviceId);
+        });
+    }
+}
 
 
 
