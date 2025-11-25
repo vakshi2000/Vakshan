@@ -509,19 +509,22 @@ scanBtn.addEventListener("click", async () => {
     scannerModal.style.display = "block";
 
     codeReader = new ZXing.BrowserMultiFormatReader();
+
     try {
-        const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
-        if (devices.length === 0) {
+        // List video input devices correctly
+        const videoInputDevices = await codeReader.listVideoInputDevices();
+
+        if (!videoInputDevices || videoInputDevices.length === 0) {
             alert("No camera found!");
             return;
         }
 
         // Select the first camera by default
-        const cameraId = devices[0].deviceId;
+        const selectedDeviceId = videoInputDevices[0].deviceId;
+        console.log("Starting camera with ID:", selectedDeviceId);
 
-        console.log("Starting camera with ID:", cameraId);
-
-        codeReader.decodeFromVideoDevice(cameraId, videoElement, (result, err) => {
+        // Start decoding from the selected camera
+        codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
             if (result) {
                 console.log("Scanned barcode:", result.text);
                 document.getElementById("barcodeInput").value = result.text;
@@ -538,6 +541,7 @@ scanBtn.addEventListener("click", async () => {
     }
 });
 
+// Close scanner modal and stop camera
 function closeScannerModal() {
     scannerModal.style.display = "none";
     if (codeReader) {
@@ -546,5 +550,12 @@ function closeScannerModal() {
     }
 }
 
+// Close when clicking close button
 closeScanner.addEventListener("click", closeScannerModal);
 
+// Close when clicking outside modal
+window.addEventListener("click", (e) => {
+    if (e.target === scannerModal) {
+        closeScannerModal();
+    }
+});
