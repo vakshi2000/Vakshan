@@ -512,22 +512,33 @@ scanBtn.addEventListener("click", async () => {
     codeReader = new ZXing.BrowserMultiFormatReader();
 
     try {
+        // List available video input devices
+        const devices = await codeReader.listVideoInputDevices();
+
         let selectedDeviceId = null;
 
-        // Try to get cameras (desktop only, mobile may fail)
-        try {
-            const devices = await codeReader.listVideoInputDevices();
-            if (devices && devices.length > 0) {
-                selectedDeviceId = devices[0].deviceId; // pick first camera
-            }
-        } catch (e) {
-            console.warn("Cannot list devices. Using default camera.");
-            // leave selectedDeviceId as null for default camera
+        if (devices.length === 0) {
+            alert("No camera found!");
+            return;
         }
 
-        // Start decoding
+        // Try to select the back camera
+        for (let device of devices) {
+            if (/back|rear|environment/i.test(device.label)) {
+                selectedDeviceId = device.deviceId;
+                break;
+            }
+        }
+
+        // If no back camera found, use the first one
+        if (!selectedDeviceId) selectedDeviceId = devices[0].deviceId;
+
+        console.log("Using camera:", selectedDeviceId, devices.find(d => d.deviceId === selectedDeviceId).label);
+
+        // Start scanning
         codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
             if (result) {
+                console.log("Scanned barcode:", result.text);
                 document.getElementById("barcodeInput").value = result.text;
                 closeScannerModal();
             }
@@ -535,6 +546,7 @@ scanBtn.addEventListener("click", async () => {
                 console.error(err);
             }
         });
+
     } catch (error) {
         console.error("Camera initialization error:", error);
         alert("Error opening camera: " + error.message);
@@ -553,6 +565,8 @@ closeScanner.addEventListener("click", closeScannerModal);
 window.addEventListener("click", (e) => {
     if (e.target === scannerModal) closeScannerModal();
 });
+
+
 
 
 
