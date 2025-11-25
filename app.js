@@ -28,6 +28,8 @@ const historyList = document.getElementById('historyList');
 const categoryFilter = document.getElementById('categoryFilter');
 const sortBarcodeBtn = document.getElementById('sortBarcodeBtn');
 
+const searchInput = document.getElementById('searchInput');
+
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
     loadCategories();
@@ -51,6 +53,7 @@ window.addEventListener('click', (e) => {
 downloadBtn.addEventListener('click', downloadExcel);
 categoryFilter.addEventListener('change', renderTable);
 sortBarcodeBtn.addEventListener('click', toggleBarcodeSort);
+searchInput.addEventListener('input', renderTable);
 
 // Allow "Enter" key to submit in inputs
 categorySelect.addEventListener('keypress', (e) => {
@@ -427,7 +430,17 @@ function renderTable() {
     let grandTotal = 0;
 
     const filter = categoryFilter.value;
-    let filteredItems = filter === 'all' ? items : items.filter(i => (i.category || 'Uncategorized') === filter);
+    const searchTerm = searchInput.value.toLowerCase().trim();
+
+    let filteredItems = items.filter(i => {
+        const matchesCategory = filter === 'all' || (i.category || 'Uncategorized') === filter;
+        const matchesSearch = !searchTerm ||
+            i.barcode.toLowerCase().includes(searchTerm) ||
+            (i.description && i.description.toLowerCase().includes(searchTerm)) ||
+            (i.category && i.category.toLowerCase().includes(searchTerm));
+
+        return matchesCategory && matchesSearch;
+    });
 
     if (isSortedByBarcode) {
         filteredItems = [...filteredItems].sort((a, b) => a.barcode.localeCompare(b.barcode));
