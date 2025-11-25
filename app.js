@@ -507,11 +507,13 @@ let codeReader = null;
 let currentStream = null;
 let videoDevices = [];
 let selectedDeviceId = null;
+let decodingActive = false; // Line after selectedDeviceId
 
 // Open Scanner
 scanBtn.addEventListener("click", async () => {
     scannerModal.style.display = "block";
     codeReader = new ZXing.BrowserMultiFormatReader();
+    decodingActive = true; // Start decoding
 
     try {
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -521,7 +523,8 @@ scanBtn.addEventListener("click", async () => {
         selectedDeviceId = rearCamera ? rearCamera.deviceId : null;
 
         await startCamera(selectedDeviceId);
-        decodeLoop();
+        addCameraToggle();  // <-- make sure toggle button exists
+        decodeLoop();       // <-- start continuous scan
     } catch (err) {
         console.error(err);
         alert("Cannot access camera. " + err.message);
@@ -565,6 +568,7 @@ async function startCamera(deviceId = null) {
 
 // decodeLoop
 async function decodeLoop() {
+    if (!decodingActive) return; // Stop if scanner closed
     try {
         const result = await codeReader.decodeOnceFromVideoDevice(selectedDeviceId, videoElement);
         if (result) {
@@ -579,8 +583,10 @@ async function decodeLoop() {
 
 
 
+
 // Close Scanner
 function closeScannerModal() {
+    decodingActive = false; // Stop decode loop
     scannerModal.style.display = "none";
     if (codeReader) {
         codeReader.reset();
@@ -591,6 +597,7 @@ function closeScannerModal() {
         currentStream = null;
     }
 }
+
 
 // Close events
 closeScanner.addEventListener("click", closeScannerModal);
