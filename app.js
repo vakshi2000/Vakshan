@@ -508,10 +508,11 @@ let codeReader = null;
 scanBtn.addEventListener("click", async () => {
     scannerModal.style.display = "block";
 
+    // Instantiate the reader
     codeReader = new ZXing.BrowserMultiFormatReader();
 
     try {
-        // List video input devices correctly
+        // List video input devices from the instance
         const videoInputDevices = await codeReader.listVideoInputDevices();
 
         if (!videoInputDevices || videoInputDevices.length === 0) {
@@ -519,11 +520,11 @@ scanBtn.addEventListener("click", async () => {
             return;
         }
 
-        // Select the first camera by default
+        // Select first camera by default
         const selectedDeviceId = videoInputDevices[0].deviceId;
         console.log("Starting camera with ID:", selectedDeviceId);
 
-        // Start decoding from the selected camera
+        // Start decoding from video
         codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
             if (result) {
                 console.log("Scanned barcode:", result.text);
@@ -550,7 +551,7 @@ function closeScannerModal() {
     }
 }
 
-// Close when clicking close button
+// Close on button click
 closeScanner.addEventListener("click", closeScannerModal);
 
 // Close when clicking outside modal
@@ -559,3 +560,4 @@ window.addEventListener("click", (e) => {
         closeScannerModal();
     }
 });
+
