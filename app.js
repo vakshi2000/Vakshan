@@ -496,3 +496,49 @@ function toggleBarcodeSort() {
     sortBarcodeBtn.classList.toggle('active', isSortedByBarcode);
     renderTable();
 }
+
+// Scanner Elements
+const scanBtn = document.getElementById("scanBtn");
+const scannerModal = document.getElementById("scannerModal");
+const closeScanner = document.querySelector(".close-scanner");
+const videoElement = document.getElementById("cameraPreview");
+
+let codeReader = null;
+
+// Open Camera Scanner
+scanBtn.addEventListener("click", async () => {
+    scannerModal.style.display = "block";
+
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    try {
+        const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+        const cameraId = devices[0].deviceId;
+
+        codeReader.decodeFromVideoDevice(cameraId, videoElement, (result, err) => {
+            if (result) {
+                document.getElementById("barcodeInput").value = result.text;
+                closeScannerModal();
+            }
+        });
+    } catch (error) {
+        console.error("Camera Error:", error);
+    }
+});
+
+// Close Scanner Modal
+function closeScannerModal() {
+    scannerModal.style.display = "none";
+    if (codeReader) {
+        codeReader.reset();
+        codeReader = null;
+    }
+}
+
+closeScanner.addEventListener("click", closeScannerModal);
+
+// Close when clicking outside
+window.addEventListener("click", (e) => {
+    if (e.target === scannerModal) {
+        closeScannerModal();
+    }
+});
