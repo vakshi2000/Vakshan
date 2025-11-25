@@ -508,26 +508,21 @@ let codeReader = null;
 scanBtn.addEventListener("click", async () => {
     scannerModal.style.display = "block";
 
-    // Instantiate the reader
     codeReader = new ZXing.BrowserMultiFormatReader();
 
     try {
-        // List video input devices from the instance
-        const videoInputDevices = await codeReader.listVideoInputDevices();
-
-        if (!videoInputDevices || videoInputDevices.length === 0) {
-            alert("No camera found!");
-            return;
+        let devices = [];
+        try {
+            devices = await codeReader.listVideoInputDevices();
+        } catch (e) {
+            console.warn("Cannot list devices, using default camera.");
         }
 
-        // Select first camera by default
-        const selectedDeviceId = videoInputDevices[0].deviceId;
-        console.log("Starting camera with ID:", selectedDeviceId);
+        // Mobile fallback: if no devices listed, use null
+        const selectedDeviceId = devices.length > 0 ? devices[0].deviceId : null;
 
-        // Start decoding from video
         codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
             if (result) {
-                console.log("Scanned barcode:", result.text);
                 document.getElementById("barcodeInput").value = result.text;
                 closeScannerModal();
             }
@@ -535,14 +530,12 @@ scanBtn.addEventListener("click", async () => {
                 console.error(err);
             }
         });
-
     } catch (error) {
         console.error("Camera initialization error:", error);
         alert("Error opening camera: " + error.message);
     }
 });
 
-// Close scanner modal and stop camera
 function closeScannerModal() {
     scannerModal.style.display = "none";
     if (codeReader) {
@@ -551,13 +544,10 @@ function closeScannerModal() {
     }
 }
 
-// Close on button click
 closeScanner.addEventListener("click", closeScannerModal);
-
-// Close when clicking outside modal
 window.addEventListener("click", (e) => {
-    if (e.target === scannerModal) {
-        closeScannerModal();
-    }
+    if (e.target === scannerModal) closeScannerModal();
 });
+
+
 
