@@ -511,54 +511,73 @@ let selectedDeviceId = null;
 // Open Scanner
 scanBtn.addEventListener("click", async () => {
     scannerModal.style.display = "block";
-
     codeReader = new ZXing.BrowserMultiFormatReader();
 
     try {
-        // List video input devices
         const devices = await navigator.mediaDevices.enumerateDevices();
         videoDevices = devices.filter(d => d.kind === 'videoinput');
 
-        if (videoDevices.length === 0) {
-            alert("No camera found!");
-            return;
-        }
+        let rearCamera = videoDevices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'));
+        selectedDeviceId = rearCamera ? rearCamera.deviceId : null;
 
-        // Pick the rear camera if available
-        const rearCamera = videoDevices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('rear'));
-        selectedDeviceId = rearCamera ? rearCamera.deviceId : videoDevices[0].deviceId;
-
-        startCamera(selectedDeviceId);
-
-        // Optional: Add a toggle button for front/back
-        addCameraToggle();
-    } catch (error) {
-        console.error("Camera error:", error);
-        alert("Cannot access camera. Error: " + error.message);
+        await startCamera(selectedDeviceId);
+        decodeLoop();
+    } catch (err) {
+        console.error(err);
+        alert("Cannot access camera. " + err.message);
     }
 });
 
+
 // Start camera with deviceId
-async function startCamera(deviceId) {
+async function startCamera(deviceId = null) {
     if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
     }
 
-    const constraints = { video: { deviceId: { exact: deviceId } } };
-    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-    videoElement.srcObject = currentStream;
-    videoElement.play();
+    let constraints;
+    if (deviceId) {
+        constraints = { video: { deviceId: { exact: deviceId } } };
+    } else {
+        constraints = { video: { facingMode: { ideal: "environment" } } };
+    }
 
-    codeReader.decodeFromVideoElement(videoElement, (result, err) => {
+    try {
+        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        videoElement.srcObject = currentStream;
+        videoElement.play();
+
+        codeReader.decodeFromVideoElement(videoElement, (result, err) => {
+            if (result) {
+                document.getElementById("barcodeInput").value = result.text;
+                closeScannerModal();
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+                console.error(err);
+            }
+        });
+    } catch (err) {
+        console.error("Camera error:", err);
+        alert("Cannot access camera. Error: " + err.message);
+    }
+}
+
+
+// decodeLoop
+async function decodeLoop() {
+    try {
+        const result = await codeReader.decodeOnceFromVideoDevice(selectedDeviceId, videoElement);
         if (result) {
             document.getElementById("barcodeInput").value = result.text;
             closeScannerModal();
         }
-        if (err && !(err instanceof ZXing.NotFoundException)) {
-            console.error(err);
-        }
-    });
+    } catch (err) {
+        if (!(err instanceof ZXing.NotFoundException)) console.error(err);
+        setTimeout(decodeLoop, 500); // Retry every 0.5s
+    }
 }
+
+
 
 // Close Scanner
 function closeScannerModal() {
