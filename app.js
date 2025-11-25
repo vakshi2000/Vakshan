@@ -498,6 +498,7 @@ function toggleBarcodeSort() {
 }
 
 // Scanner Elements
+// Scanner Elements
 const scanBtn = document.getElementById("scanBtn");
 const scannerModal = document.getElementById("scannerModal");
 const closeScanner = document.querySelector(".close-scanner");
@@ -511,16 +512,20 @@ scanBtn.addEventListener("click", async () => {
     codeReader = new ZXing.BrowserMultiFormatReader();
 
     try {
-        let devices = [];
+        let selectedDeviceId = null;
+
+        // Try to get cameras (desktop only, mobile may fail)
         try {
-            devices = await codeReader.listVideoInputDevices();
+            const devices = await codeReader.listVideoInputDevices();
+            if (devices && devices.length > 0) {
+                selectedDeviceId = devices[0].deviceId; // pick first camera
+            }
         } catch (e) {
-            console.warn("Cannot list devices, using default camera.");
+            console.warn("Cannot list devices. Using default camera.");
+            // leave selectedDeviceId as null for default camera
         }
 
-        // Mobile fallback: if no devices listed, use null
-        const selectedDeviceId = devices.length > 0 ? devices[0].deviceId : null;
-
+        // Start decoding
         codeReader.decodeFromVideoDevice(selectedDeviceId, videoElement, (result, err) => {
             if (result) {
                 document.getElementById("barcodeInput").value = result.text;
@@ -548,6 +553,7 @@ closeScanner.addEventListener("click", closeScannerModal);
 window.addEventListener("click", (e) => {
     if (e.target === scannerModal) closeScannerModal();
 });
+
 
 
 
