@@ -505,27 +505,39 @@ const videoElement = document.getElementById("cameraPreview");
 
 let codeReader = null;
 
-// Open Camera Scanner
 scanBtn.addEventListener("click", async () => {
     scannerModal.style.display = "block";
 
     codeReader = new ZXing.BrowserMultiFormatReader();
     try {
         const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+        if (devices.length === 0) {
+            alert("No camera found!");
+            return;
+        }
+
+        // Select the first camera by default
         const cameraId = devices[0].deviceId;
+
+        console.log("Starting camera with ID:", cameraId);
 
         codeReader.decodeFromVideoDevice(cameraId, videoElement, (result, err) => {
             if (result) {
+                console.log("Scanned barcode:", result.text);
                 document.getElementById("barcodeInput").value = result.text;
                 closeScannerModal();
             }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+                console.error(err);
+            }
         });
+
     } catch (error) {
-        console.error("Camera Error:", error);
+        console.error("Camera initialization error:", error);
+        alert("Error opening camera: " + error.message);
     }
 });
 
-// Close Scanner Modal
 function closeScannerModal() {
     scannerModal.style.display = "none";
     if (codeReader) {
@@ -536,9 +548,3 @@ function closeScannerModal() {
 
 closeScanner.addEventListener("click", closeScannerModal);
 
-// Close when clicking outside
-window.addEventListener("click", (e) => {
-    if (e.target === scannerModal) {
-        closeScannerModal();
-    }
-});
