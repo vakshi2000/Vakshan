@@ -34,7 +34,6 @@
             <div class="form-group">
                 <label for="barcodeInput">Barcode Number</label>
                 <div class="input-group">
-                    <button id="scanBtn" class="btn-icon" title="Scan Barcode">📷</button>
                     <input type="text" id="barcodeInput" placeholder="Enter or scan barcode">
                 </div>
             </div>
@@ -55,7 +54,8 @@
         <div class="card table-section">
             <div class="table-header">
                 <h2>Inventory Report</h2>
-
+            </div>
+            <div class="table-header">
                 <div class="filter-group">
                     <select id="categoryFilter">
                         <option value="all">All Categories</option>
@@ -66,10 +66,16 @@
                     <input type="text" id="searchInput" placeholder="Search items...">
                     <button id="sortBarcodeBtn" class="btn-secondary">Sort by Barcode</button>
                     <button id="downloadBtn" class="btn-secondary">Download Excel</button>
-                    <button id="historyBtn" class="btn-text">View History</button>
+                    <button id="historyBtn" class="btn-secondary">View History</button>
+                    <button id="clearAllBtn" class="btn-secondary">Clear All</button>
                 </div>
             </div>
-
+            <div class="table-header">
+            <div class="actions">
+                <input type="file" id="excelUpload" accept=".xlsx, .xls" />
+                <button onclick="uploadExcel()" class="btn-secondary">Upload Items</button>
+            </div>
+            </div>
             <div class="table-wrapper">
                 <table id="itemTable">
                     <thead>
@@ -79,6 +85,7 @@
                             <th>Description</th>
                             <th>Price</th>
                             <th>Quantity</th>
+                            <th>Actual Stock</th> <!-- NEW COLUMN -->
                             <th>Total</th>
                             <th>Actions</th>
                         </tr>
@@ -126,6 +133,12 @@
                     <label for="editQuantity">Quantity</label>
                     <input type="number" id="editQuantity">
                 </div>
+
+                <div class="form-group">
+                    <label for="editActual">Actual Stock</label>
+                    <input type="number" id="editActual">
+                </div>
+
             </div>
 
             <div class="modal-footer">
