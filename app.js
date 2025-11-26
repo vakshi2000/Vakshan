@@ -27,8 +27,10 @@ const closeModalBtn = document.querySelector('.close-modal');
 const historyList = document.getElementById('historyList');
 const categoryFilter = document.getElementById('categoryFilter');
 const sortBarcodeBtn = document.getElementById('sortBarcodeBtn');
+const clearAllBtn = document.getElementById('clearAllBtn'); // NEW
 
 const searchInput = document.getElementById('searchInput');
+
 
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
@@ -54,6 +56,8 @@ downloadBtn.addEventListener('click', downloadExcel);
 categoryFilter.addEventListener('change', renderTable);
 sortBarcodeBtn.addEventListener('click', toggleBarcodeSort);
 searchInput.addEventListener('input', renderTable);
+clearAllBtn.addEventListener('click', clearAllItems); // NEW
+
 
 // Allow "Enter" key to submit in inputs
 categorySelect.addEventListener('keypress', (e) => {
@@ -71,21 +75,28 @@ descriptionInput.addEventListener('keypress', (e) => {
 barcodeInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         const barcode = barcodeInput.value.trim();
-        const existingItem = items.find(i => i.barcode === barcode);
+
+        // FIX: convert both sides to string
+        const existingItem = items.find(i => String(i.barcode) === String(barcode));
 
         if (existingItem) {
+            descriptionInput.value = existingItem.description || "";
             priceInput.value = existingItem.price;
-            // Also set category if it exists in our list
+
             if (categories.includes(existingItem.category)) {
                 categorySelect.value = existingItem.category;
             }
+
             priceInput.focus();
-            priceInput.select(); // Select price for easy overwrite if needed
+            priceInput.select(); 
         } else {
             descriptionInput.focus();
         }
     }
 });
+
+
+
 
 priceInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
@@ -109,61 +120,66 @@ async function handleAddItem() {
         alert('Please enter a valid price.');
         return;
     }
-    // Check if item exists
-    const existingItemIndex = items.findIndex(item => item.barcode === barcode);
+
+    // Always compare barcodes as strings
+    const existingItemIndex = items.findIndex(item => String(item.barcode) === String(barcode));
 
     if (existingItemIndex !== -1) {
+        const existingItem = items[existingItemIndex];
+
         // Check for price mismatch
-        if (items[existingItemIndex].price !== price) {
-            alert(`Error: This barcode already exists with a price of LKR ${items[existingItemIndex].price.toFixed(2)}.\nYou entered LKR ${price.toFixed(2)}.\n\nCannot add item with different price.`);
+        if (existingItem.price !== price) {
+            alert(`Error: This barcode already exists with a price of LKR ${existingItem.price.toFixed(2)}.\nYou entered LKR ${price.toFixed(2)}.\n\nCannot add item with different price.`);
             return;
         }
 
-        // Confirmation for update
-        if (!confirm(`Item exists. Increase quantity for "${barcode}"?\nCategory: ${items[existingItemIndex].category}\nPrice: LKR ${price}`)) {
+        // Confirmation for quantity increase
+        if (!confirm(`Item exists. Increase quantity for "${barcode}"?\nCategory: ${existingItem.category}\nPrice: LKR ${price}`)) {
             return;
         }
 
-        // Update existing
-        items[existingItemIndex].quantity += 1;
-        // Price is same, no need to update
-        if (category !== 'Uncategorized' && items[existingItemIndex].category === 'Uncategorized') {
-            items[existingItemIndex].category = category;
+        // Update quantity
+        existingItem.quantity += 1;
+
+        // Update category only if current category is Uncategorized
+        if (category !== 'Uncategorized' && existingItem.category === 'Uncategorized') {
+            existingItem.category = category;
         }
 
-        await saveItem(items[existingItemIndex]);
+        await saveItem(existingItem);
         logAction('UPDATE', `Increased quantity for ${barcode}`);
         highlightRow(barcode);
     } else {
-        // Confirmation for new item
+        // Confirmation for adding new item
         if (!confirm(`Add NEW item?\nBarcode: ${barcode}\nCategory: ${category}\nPrice: LKR ${price}`)) {
             return;
         }
 
-        // Add new
         const newItem = {
             id: Date.now().toString(),
-            barcode: barcode,
+            barcode: String(barcode),  // Store as string
             description: description,
             price: price,
             category: category,
             quantity: 1,
+            actual: 0,   // NEW FIELD
             timestamp: new Date().toISOString()
         };
+
         items.push(newItem);
         await saveItem(newItem, true);
         logAction('ADD', `Added new item ${barcode} - ${category} - LKR ${price}`);
     }
 
-    // Reset inputs
+    // Reset input fields
     barcodeInput.value = '';
     descriptionInput.value = '';
     priceInput.value = '';
-    // Keep category for convenience, and focus barcode for next item
-    barcodeInput.focus();
+    barcodeInput.focus();  // Ready for next input
 
     renderTable();
 }
+
 
 function handleAddCategory() {
     const newCat = prompt("Enter new category name:");
@@ -230,6 +246,7 @@ async function saveItem(item, isNew = false) {
             } else {
                 await itemRef.update({
                     quantity: item.quantity,
+                    actual: item.actual ?? 0,
                     price: item.price,
                     category: item.category
                 });
@@ -263,6 +280,7 @@ const editCategory = document.getElementById('editCategory');
 const editDescription = document.getElementById('editDescription');
 const editPrice = document.getElementById('editPrice');
 const editQuantity = document.getElementById('editQuantity');
+const editActual = document.getElementById('editActual');
 const saveEditBtn = document.getElementById('saveEditBtn');
 const cancelEditBtn = document.getElementById('cancelEditBtn');
 const closeEditModalBtn = document.querySelector('.close-edit-modal');
@@ -290,6 +308,7 @@ function editItem(barcode) {
     editDescription.value = item.description || '';
     editPrice.value = item.price;
     editQuantity.value = item.quantity;
+    editActual.value = item.actual ?? 0;
 
     editModal.style.display = 'block';
 }
@@ -302,6 +321,7 @@ async function saveEdit() {
 
     const newPrice = parseFloat(editPrice.value);
     const newQty = parseInt(editQuantity.value);
+    const newActual = parseInt(editActual.value);
     const newCat = editCategory.value;
     const newDesc = editDescription.value.trim();
 
@@ -312,6 +332,7 @@ async function saveEdit() {
 
     item.price = newPrice;
     item.quantity = newQty;
+    item.actual = newActual;
     item.category = newCat;
     item.description = newDesc;
 
@@ -411,6 +432,7 @@ function downloadExcel() {
         'Description': item.description || '',
         'Price (LKR)': item.price,
         'Quantity': item.quantity,
+        'Actual Stock': item.actual ?? 0,
         'Total (LKR)': item.price * item.quantity
     }));
 
@@ -423,6 +445,72 @@ function downloadExcel() {
 
     XLSX.writeFile(wb, fileName);
 }
+
+function uploadExcel() {
+    const fileInput = document.getElementById("excelUpload");
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert("Please select an Excel file first");
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = async function (event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        let importedCount = 0;
+
+        for (let row of rows) {
+            if (!row.Barcode) continue;
+
+            const existingIndex = items.findIndex(i => i.barcode === row.Barcode);
+
+            const newItem = {
+                id: Date.now().toString(),
+                barcode: row.Barcode,
+                category: row.Category || "Uncategorized",
+                description: row.Description || "",
+                price: Number(row.Price) || 0,
+                quantity: Number(row.Quantity) || 0,
+                actual: Number(row["Actual Stock"]) || 0,
+                timestamp: new Date().toISOString()
+            };
+
+            if (existingIndex === -1) {
+                // Add new item
+                items.push(newItem);
+                await saveItem(newItem, true);
+            } else {
+                // Update existing item
+                const existing = items[existingIndex];
+                existing.category = newItem.category;
+                existing.description = newItem.description;
+                existing.price = newItem.price;
+                existing.quantity = newItem.quantity;
+                existing.actual = newItem.actual;
+
+                await saveItem(existing, false);
+            }
+
+            importedCount++;
+        }
+
+        localStorage.setItem("itemReportData", JSON.stringify(items));
+
+        alert(`Excel uploaded successfully! Imported/Updated: ${importedCount} items`);
+
+        loadItems();
+        renderTable();
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
 
 function renderTable() {
     itemTableBody.innerHTML = '';
@@ -466,6 +554,7 @@ function renderTable() {
                 <td>${item.description || ''}</td>
                 <td>LKR ${item.price.toFixed(2)}</td>
                 <td>${item.quantity}</td>
+                <td>${item.actual ?? 0}</td>
                 <td>LKR ${itemTotal.toFixed(2)}</td>
                 <td>
                     <button class="action-btn edit" onclick="editItem('${item.barcode}')">Edit</button>
@@ -625,6 +714,32 @@ function addCameraToggle() {
     }
 }
 
+async function clearAllItems() {
+    if (!confirm("Are you sure you want to clear ALL items? This action cannot be undone.")) {
+        return;
+    }
+
+    // Clear local array
+    items = [];
+
+    // Clear LocalStorage
+    localStorage.removeItem('itemReportData');
+
+    // Optionally clear Firebase
+    if (db) {
+        try {
+            const snapshot = await db.collection(COLLECTION_NAME).get();
+            const batch = db.batch();
+            snapshot.forEach(doc => batch.delete(doc.ref));
+            await batch.commit();
+        } catch (error) {
+            console.error("Error clearing Firebase:", error);
+        }
+    }
+
+    logAction('CLEAR', 'All items cleared');
+    renderTable();
+}
 
 
 
