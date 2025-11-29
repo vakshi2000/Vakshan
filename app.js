@@ -740,7 +740,3 @@ async function clearAllItems() {
     logAction('CLEAR', 'All items cleared');
     renderTable();
 }
-
-
-
-
